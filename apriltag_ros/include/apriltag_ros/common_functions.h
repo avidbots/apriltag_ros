@@ -39,6 +39,7 @@
  * $Author: dmalyuta $
  *
  * Originator:        Danylo Malyuta, JPL
+ * Modified by:       Jake Park - jake@avidbots.com
  ******************************************************************************/
 
 #ifndef APRILTAG_ROS_COMMON_FUNCTIONS_H
@@ -62,7 +63,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <tf/transform_broadcaster.h>
 
-#include <apriltag.h>
+#include <apriltag/apriltag.h>
 
 #include "apriltag_ros/AprilTagDetection.h"
 #include "apriltag_ros/AprilTagDetectionArray.h"
@@ -232,6 +233,21 @@ class TagDetector
 
   // Draw the detected tags' outlines and payload values on the image
   void drawDetections(cv_bridge::CvImagePtr image);
+
+  // Modification: Provide a way to dynamically add a tag to detect
+  void addTagToDetect(int id, double size);
+
+  // Modification: Provide a way to dynamically clear tags to detect
+  void clearTagsToDetect();
+
+  // Modification: Provide a way to set publish_tf variable
+  void publishTf(bool publish_tf);
+
+  // Modification: Provide a way to set a new family to detect on run time
+  void SetUpNewTagFamilyForDetection(std::string family);
+
+  // Modification: Wrap memory clean up for tag detector and tag family structs into one function
+  void FreeCurrentTagDetectionSetup();
 };
 
 } // namespace apriltag_ros
