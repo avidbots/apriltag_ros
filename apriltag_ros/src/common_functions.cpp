@@ -33,14 +33,14 @@
 #include "image_geometry/pinhole_camera_model.h"
 
 #include "common/homography.h"
-#include "tagStandard52h13.h"
-#include "tagStandard41h12.h"
-#include "tag36h11.h"
-#include "tag25h9.h"
-#include "tag16h5.h"
-#include "tagCustom48h12.h"
-#include "tagCircle21h7.h"
-#include "tagCircle49h12.h"
+#include "apriltag/tagStandard52h13.h"
+#include "apriltag/tagStandard41h12.h"
+#include "apriltag/tag36h11.h"
+#include "apriltag/tag25h9.h"
+#include "apriltag/tag16h5.h"
+#include "apriltag/tagCustom48h12.h"
+#include "apriltag/tagCircle21h7.h"
+#include "apriltag/tagCircle49h12.h"
 
 namespace apriltag_ros
 {
@@ -165,50 +165,25 @@ TagDetector::TagDetector(ros::NodeHandle pnh) :
 
 // destructor
 TagDetector::~TagDetector() {
-  // free memory associated with tag detector
-  apriltag_detector_destroy(td_);
-
   // Free memory associated with the array of tag detections
-  apriltag_detections_destroy(detections_);
+  if (detections_) {
+    apriltag_detections_destroy(detections_);
+  }
 
-  // free memory associated with tag family
-  if (family_ == "tagStandard52h13")
-  {
-    tagStandard52h13_destroy(tf_);
-  }
-  else if (family_ == "tagStandard41h12")
-  {
-    tagStandard41h12_destroy(tf_);
-  }
-  else if (family_ == "tag36h11")
-  {
-    tag36h11_destroy(tf_);
-  }
-  else if (family_ == "tag25h9")
-  {
-    tag25h9_destroy(tf_);
-  }
-  else if (family_ == "tag16h5")
-  {
-    tag16h5_destroy(tf_);
-  }
-  else if (family_ == "tagCustom48h12")
-  {
-    tagCustom48h12_destroy(tf_);
-  }
-  else if (family_ == "tagCircle21h7")
-  {
-    tagCircle21h7_destroy(tf_);
-  }
-  else if (family_ == "tagCircle49h12")
-  {
-    tagCircle49h12_destroy(tf_);
-  }
+  // Free the memory associated with tag detector and tag family
+  FreeCurrentTagDetectionSetup();
 }
 
 AprilTagDetectionArray TagDetector::detectTags (
     const cv_bridge::CvImagePtr& image,
     const sensor_msgs::CameraInfoConstPtr& camera_info) {
+  AprilTagDetectionArray tag_detection_array;
+
+  if (!td_) {
+    ROS_ERROR("Tag family has not been specified!");
+    return tag_detection_array;
+  }
+
   // Convert image to AprilTag code's format
   cv::Mat gray_image;
   if (image->image.channels() == 1)
@@ -253,7 +228,6 @@ AprilTagDetectionArray TagDetector::detectTags (
 
   // Compute the estimated translation and rotation individually for each
   // detected tag
-  AprilTagDetectionArray tag_detection_array;
   std::vector<std::string > detection_names;
   tag_detection_array.header = image->header;
   std::map<std::string, std::vector<cv::Point3d > > bundleObjectPoints;
@@ -792,6 +766,76 @@ bool TagDetector::findStandaloneTagDescription (
   }
   descriptionContainer = &(description_itr->second);
   return true;
+}
+
+void TagDetector::addTagToDetect(int id, double size) {
+  std::string frame_name = "tag_" + std::to_string(id);
+  StandaloneTagDescription description(id, size, frame_name);
+
+  // Assume tags of the same id with different sizes will not be used
+  standalone_tag_descriptions_.insert(std::make_pair(id, description));
+}
+
+void TagDetector::clearTagsToDetect() { standalone_tag_descriptions_.clear(); }
+
+void TagDetector::publishTf(bool publish_tf) { publish_tf_ = publish_tf; }
+
+void TagDetector::SetUpNewTagFamilyForDetection(std::string family) {
+  // Ensure to free the current tag detection for the case of reset
+  FreeCurrentTagDetectionSetup();
+
+  // Define the tag family whose tags should be searched for in the camera
+  // images with the provided family
+  family_ = family;
+  if (family_ == "tagStandard52h13") {
+    tf_ = tagStandard52h13_create();
+  } else if (family_ == "tagStandard41h12") {
+    tf_ = tagStandard41h12_create();
+  } else if (family_ == "tag36h11") {
+    tf_ = tag36h11_create();
+  } else if (family_ == "tag25h9") {
+    tf_ = tag25h9_create();
+  } else if (family_ == "tag16h5") {
+    tf_ = tag16h5_create();
+  } else if (family_ == "tagCustom48h12") {
+    tf_ = tagCustom48h12_create();
+  } else {
+    ROS_ERROR("Invalid tag family provided!");
+    return;
+  }
+
+  // Create the AprilTag 2 detector
+  td_ = apriltag_detector_create();
+  apriltag_detector_add_family(td_, tf_);
+  td_->quad_decimate = (float)decimate_;
+  td_->quad_sigma = (float)blur_;
+  td_->nthreads = threads_;
+  td_->debug = debug_;
+  td_->refine_edges = refine_edges_;
+}
+
+void TagDetector::FreeCurrentTagDetectionSetup() {
+  // Free tag detector
+  if (td_) {
+    apriltag_detector_destroy(td_);
+  }
+
+  // Free memory associated with tag family
+  if (tf_) {
+    if (family_ == "tagStandard52h13") {
+      tagStandard52h13_destroy(tf_);
+    } else if (family_ == "tagStandard41h12") {
+      tagStandard41h12_destroy(tf_);
+    } else if (family_ == "tag36h11") {
+      tag36h11_destroy(tf_);
+    } else if (family_ == "tag25h9") {
+      tag25h9_destroy(tf_);
+    } else if (family_ == "tag16h5") {
+      tag16h5_destroy(tf_);
+    } else if (family_ == "tagCustom48h12") {
+      tagCustom48h12_destroy(tf_);
+    }
+  }
 }
 
 } // namespace apriltag_ros

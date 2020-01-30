@@ -14,15 +14,16 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   tf
+  apriltag
 )
 
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.2.0 REQUIRED)
 
-find_package(PkgConfig)
-pkg_search_module(apriltag REQUIRED apriltag)
+# find_package(PkgConfig)
+# pkg_search_module(apriltag REQUIRED apriltag)
 set(apriltag_INCLUDE_DIRS "${apriltag_INCLUDE_DIRS}/apriltag")
-link_directories(${apriltag_LIBDIR})
+# link_directories(${apriltag_LIBDIR})
 
 # Set the build type.  Options are:
 #  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
